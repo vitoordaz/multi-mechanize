@@ -7,8 +7,6 @@
 #
 
 
-import sys
-
 try:
     import matplotlib
     matplotlib.use('Agg')  # use a non-GUI backend

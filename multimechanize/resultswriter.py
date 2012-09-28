@@ -6,12 +6,11 @@
 #  This file is part of Multi-Mechanize | Performance Test Framework
 #
 
-
 import os
+import sys
+import time
 import Queue
 import threading
-import time
-
 
 
 class ResultsWriter(threading.Thread):
@@ -34,14 +33,21 @@ class ResultsWriter(threading.Thread):
         with open(self.output_dir + 'results.csv', 'w') as f:
             while True:
                 try:
-                    elapsed, epoch, self.user_group_name, scriptrun_time, error, custom_timers = self.queue.get(False)
+                    elapsed, epoch, self.user_group_name, scriptrun_time,\
+                        error, custom_timers = self.queue.get(False)
                     self.trans_count += 1
                     self.timer_count += len(custom_timers)
                     if error != '':
                         self.error_count += 1
-                    f.write('%i,%.3f,%i,%s,%f,%s,%s\n' % (self.trans_count, elapsed, epoch, self.user_group_name, scriptrun_time, error, repr(custom_timers)))
+                    f.write('%i,%.3f,%i,%s,%f,%s,%s\n' %
+                            (self.trans_count, elapsed, epoch,
+                             self.user_group_name, scriptrun_time, error,
+                             repr(custom_timers)))
                     f.flush()
                     if self.console_logging:
-                        print '%i, %.3f, %i, %s, %.3f, %s, %s' % (self.trans_count, elapsed, epoch, self.user_group_name, scriptrun_time, error, repr(custom_timers))
+                        print '%i, %.3f, %i, %s, %.3f, %s, %s' % \
+                              (self.trans_count, elapsed, epoch,
+                               self.user_group_name, scriptrun_time,
+                               error, repr(custom_timers))
                 except Queue.Empty:
                     time.sleep(.05)

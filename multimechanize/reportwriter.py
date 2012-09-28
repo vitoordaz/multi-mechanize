@@ -6,22 +6,25 @@
 #  This file is part of Multi-Mechanize | Performance Test Framework
 #
 
+import os
+
 
 class Report(object):
+
     def __init__(self, results_dir):
         self.results_dir = results_dir
-        self.fn = results_dir + 'results.html'
+        self.fn = os.path.join(results_dir, 'results.html')
+        self.f = open(self.fn, 'w')
         self.write_head_html()
 
-
     def write_line(self, line):
-        with open(self.fn, 'a') as f:
-            f.write('%s\n' % line)
+        self.f.write('%s\n' % line)
 
+    def __del__(self):
+        self.f.close()
 
     def write_head_html(self):
-        with open(self.fn, 'w') as f:
-            f.write("""\
+        self.f.write("""\
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
@@ -92,15 +95,5 @@ class Report(object):
 <body>
 """)
 
-
     def write_closing_html(self):
-        with open(self.fn, 'a') as f:
-            f.write("""\
-</body>
-</html>
-""")
-
-
-
-
-
+        self.f.write("</body></html>")

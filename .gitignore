@@ -3,3 +3,5 @@
 _build
 build
 dist
+.idea
+multi_mechanize.egg-info

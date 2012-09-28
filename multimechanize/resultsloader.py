@@ -131,8 +131,8 @@ class TimerRow(Base):
         primaryjoin="TimerRow.mechanize_results_id==ResultRow.id")
 
 def load_results_database(project_name, run_localtime, results_dir,
-        results_database, run_time, rampup, results_ts_interval,
-        user_group_configs):
+        results_database, run_time, transaction_limit, rampup,
+        results_ts_interval, user_group_configs):
     """parse and load a multi-mechanize results csv file into a database"""
 
     logline_re = re.compile('(.+),(.+),(.+),(.+),(.+),(.?),(\{.+\})')

@@ -6,17 +6,19 @@
 #  This file is part of Multi-Mechanize | Performance Test Framework
 #
 
-
+import os
 import time
-from collections import defaultdict
 import graph
 import reportwriter
 import reportwriterxml
+from collections import defaultdict
 
 
-
-def output_results(results_dir, results_file, run_time, rampup, ts_interval, user_group_configs=None, xml_reports=False):
-    results = Results(results_dir + results_file, run_time)
+def output_results(results_dir, results_file, run_time, transaction_limit,
+                   rampup, ts_interval, user_group_configs=None,
+                   xml_reports=False):
+    results = Results(os.path.join(results_dir, results_file), run_time,
+                      transaction_limit)
 
     report = reportwriter.Report(results_dir)
 
@@ -29,16 +31,22 @@ def output_results(results_dir, results_file, run_time, rampup, ts_interval, use
 
     # write the results in XML
     if xml_reports:
-        reportwriterxml.write_jmeter_output(results.resp_stats_list, results_dir)
+        reportwriterxml.write_jmeter_output(results.resp_stats_list,
+                                            results_dir)
 
     report.write_line('<h1>Performance Results Report</h1>')
 
     report.write_line('<h2>Summary</h2>')
 
     report.write_line('<div class="summary">')
-    report.write_line('<b>transactions:</b> %d<br />' % results.total_transactions)
+    report.write_line('<b>transactions:</b> %d<br />' %
+                      results.total_transactions)
     report.write_line('<b>errors:</b> %d<br />' % results.total_errors)
-    report.write_line('<b>run time:</b> %d secs<br />' % run_time)
+    if run_time:
+        report.write_line('<b>run time:</b> %d secs<br />' % run_time)
+    if transaction_limit:
+        report.write_line('<b>transaction limit:</b> %d<br />' %
+                          transaction_limit)
     report.write_line('<b>rampup:</b> %d secs<br /><br />' % rampup)
     report.write_line('<b>test start:</b> %s<br />' % results.start_datetime)
     report.write_line('<b>test finish:</b> %s<br /><br />' % results.finish_datetime)
@@ -49,7 +57,8 @@ def output_results(results_dir, results_file, run_time, rampup, ts_interval, use
         report.write_line('<tr><th>group name</th><th>threads</th><th>script name</th></tr>')
         for user_group_config in user_group_configs:
             report.write_line('<tr><td>%s</td><td>%d</td><td>%s</td></tr>' %
-                (user_group_config.name, user_group_config.num_threads, user_group_config.script_file))
+                (user_group_config.name, user_group_config.num_threads,
+                 user_group_config.script_file))
         report.write_line('</table>')
     report.write_line('</div>')
 
@@ -62,7 +71,8 @@ def output_results(results_dir, results_file, run_time, rampup, ts_interval, use
         t = (resp_stats.elapsed_time, resp_stats.trans_time)
         trans_timer_points.append(t)
         trans_timer_vals.append(resp_stats.trans_time)
-    graph.resp_graph_raw(trans_timer_points, 'All_Transactions_response_times.png', results_dir)
+    graph.resp_graph_raw(trans_timer_points,
+                         'All_Transactions_response_times.png', results_dir)
 
     report.write_line('<h3>Transaction Response Summary (secs)</h3>')
     report.write_line('<table>')
@@ -145,7 +155,8 @@ def output_results(results_dir, results_file, run_time, rampup, ts_interval, use
                 custom_timer_vals.append(val)
             except KeyError:
                 pass
-        graph.resp_graph_raw(custom_timer_points, timer_name + '_response_times.png', results_dir)
+        graph.resp_graph_raw(custom_timer_points,
+                             timer_name + '_response_times.png', results_dir)
 
         throughput_points = {}  # {intervalnumber: numberofrequests}
         interval_secs = ts_interval
@@ -237,12 +248,12 @@ def output_results(results_dir, results_file, run_time, rampup, ts_interval, use
     report.write_closing_html()
 
 
-
-
 class Results(object):
-    def __init__(self, results_file_name, run_time):
+
+    def __init__(self, results_file_name, run_time, transaction_limit):
         self.results_file_name = results_file_name
         self.run_time = run_time
+        self.transaction_limit = transaction_limit
         self.total_transactions = 0
         self.total_errors = 0
         self.uniq_timer_names = set()
@@ -252,10 +263,10 @@ class Results(object):
 
         self.epoch_start = self.resp_stats_list[0].epoch_secs
         self.epoch_finish = self.resp_stats_list[-1].epoch_secs
-        self.start_datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.epoch_start))
-        self.finish_datetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.epoch_finish))
-
-
+        self.start_datetime = time.strftime('%Y-%m-%d %H:%M:%S',
+                                            time.localtime(self.epoch_start))
+        self.finish_datetime = time.strftime('%Y-%m-%d %H:%M:%S',
+                                             time.localtime(self.epoch_finish))
 
     def __parse_file(self):
         f = open(self.results_file_name, 'rb')
@@ -273,7 +284,8 @@ class Results(object):
             self.uniq_user_group_names.add(user_group_name)
 
             custom_timers = {}
-            timers_string = ''.join(fields[6:]).replace('{', '').replace('}', '')
+            timers_string = ''.join(fields[6:]).replace('{', '')\
+                                               .replace('}', '')
             splat = timers_string.split("'")[1:]
             timers = []
             vals = []
@@ -287,10 +299,20 @@ class Results(object):
             for timer, val in zip(timers, vals):
                 custom_timers[timer] = val
 
-            r = ResponseStats(request_num, elapsed_time, epoch_secs, user_group_name, trans_time, error, custom_timers)
+            r = ResponseStats(request_num, elapsed_time, epoch_secs,
+                              user_group_name, trans_time, error,
+                              custom_timers)
 
-            if elapsed_time < self.run_time:  # drop all times that appear after the last request was sent (incomplete interval)
-                resp_stats_list.append(r)
+            # drop all times that appear after the last request was sent
+            # (incomplete interval)
+            if self.run_time:
+                if elapsed_time < self.run_time:
+                    resp_stats_list.append(r)
+
+            # drop all transactions that appear after the last request was sent
+            if self.transaction_limit:
+                if request_num <= self.transaction_limit:
+                    resp_stats_list.append(r)
 
             if error != '':
                 self.total_errors += 1
@@ -300,9 +322,10 @@ class Results(object):
         return resp_stats_list
 
 
-
 class ResponseStats(object):
-    def __init__(self, request_num, elapsed_time, epoch_secs, user_group_name, trans_time, error, custom_timers):
+
+    def __init__(self, request_num, elapsed_time, epoch_secs, user_group_name,
+                 trans_time, error, custom_timers):
         self.request_num = request_num
         self.elapsed_time = elapsed_time
         self.epoch_secs = epoch_secs
@@ -310,7 +333,6 @@ class ResponseStats(object):
         self.trans_time = trans_time
         self.error = error
         self.custom_timers = custom_timers
-
 
 
 def split_series(points, interval):
@@ -323,11 +345,9 @@ def split_series(points, interval):
     return series
 
 
-
 def average(seq):
     avg = (float(sum(seq)) / len(seq))
     return avg
-
 
 
 def standard_dev(seq):
@@ -340,13 +360,10 @@ def standard_dev(seq):
     return stdev
 
 
-
 def percentile(seq, percentile):
     i = int(len(seq) * (percentile / 100.0))
     seq.sort()
     return seq[i]
-
-
 
 
 if __name__ == '__main__':
